@@ -24,7 +24,7 @@
 -- :doc creates a new message
 INSERT INTO guestbook
 (name, message, timestamp)
-values (:name, :message, :timestamp)
+VALUES (:name, :message, :timestamp)
 
 -- :name get-messages :? :*
 -- :doc selectes all available messages

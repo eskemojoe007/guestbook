@@ -7,7 +7,9 @@
     [guestbook.config :refer [env]]
     [clojure.tools.cli :refer [parse-opts]]
     [clojure.tools.logging :as log]
-    [mount.core :as mount])
+    [mount.core :as mount]
+    [guestbook.db.core])
+
   (:gen-class))
 
 (def cli-options
@@ -64,4 +66,3 @@
       (System/exit 0))
     :else
     (start-app args)))
-  

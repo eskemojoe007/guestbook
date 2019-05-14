@@ -12,7 +12,7 @@
     st/required
     st/string]
    [:message
-    st/require
+    st/required
     st/string
     {:message "message must contain at least 10 characters"
      :validate #(> (count %) 9)}]])
@@ -28,12 +28,10 @@
         (assoc :flash (assoc params :errors errors)))
     (do
       (db/save-message!
-       (assoc params :timestamp (java.util.Date.))
-       (response/found "/")))))
+       (assoc params :timestamp (java.util.Date.)))
+      (response/found "/"))))
 
-(defn home-page
-  [{:keys [flash] :as request}]
-
+(defn home-page [{:keys [flash] :as request}]
   (layout/render
    request
    "home.html"
