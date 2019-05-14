@@ -2,7 +2,7 @@
   (:require
     [guestbook.db.core :refer [*db*] :as db]
     [luminus-migrations.core :as migrations]
-    [clojure.test :refer :all]
+    [clojure.test :refer [use-fixtures is deftest]]
     [clojure.java.jdbc :as jdbc]
     [guestbook.config :refer [env]]
     [mount.core :as mount]))
@@ -16,22 +16,18 @@
     (migrations/migrate ["migrate"] (select-keys env [:database-url]))
     (f)))
 
-(deftest test-users
+(deftest test-message
   (jdbc/with-db-transaction [t-conn *db*]
     (jdbc/db-set-rollback-only! t-conn)
-    (is (= 1 (db/create-user!
-               t-conn
-               {:id         "1"
-                :first_name "Sam"
-                :last_name  "Smith"
-                :email      "sam.smith@example.com"
-                :pass       "pass"})))
-    (is (= {:id         "1"
-            :first_name "Sam"
-            :last_name  "Smith"
-            :email      "sam.smith@example.com"
-            :pass       "pass"
-            :admin      nil
-            :last_login nil
-            :is_active  nil}
-           (db/get-user t-conn {:id "1"})))))
+    (let [timestamp (java.time.LocalDateTime/now)
+          entry {:name "Bob"
+                 :message "Hello, World"
+                 :timestamp timestamp}]
+      (is (= 1 (db/save-message!
+                t-conn
+                entry
+                {:connection t-conn})))
+      (is (= entry
+             (-> (db/get-messages t-conn {})
+                 (first)
+                 (select-keys [:name :message :timestamp])))))))
