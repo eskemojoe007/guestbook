@@ -12,8 +12,7 @@
     [ring.middleware.flash :refer [wrap-flash]]
     [immutant.web.middleware :refer [wrap-session]]
     [ring.middleware.defaults :refer [site-defaults wrap-defaults]])
-  (:import 
-           ))
+  (:import))
 
 (defn wrap-internal-error [handler]
   (fn [req]
