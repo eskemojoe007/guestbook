@@ -5,7 +5,8 @@
     [clojure.java.io :as io]
     [guestbook.middleware :as middleware]
     [ring.util.http-response :as response]
-    [struct.core :as st]))
+    [struct.core :as st]
+    [clojure.pprint :refer [pprint]]))
 
 (def message-schema
   [[:name
@@ -31,7 +32,10 @@
        (assoc params :timestamp (java.util.Date.)))
       (response/found "/"))))
 
-(defn home-page [{:keys [flash] :as request}]
+(defn home-page
+  "Home page handler.
+  Takes the request and renders the template with the flash information"
+  [{:keys [flash] :as request}]
   (layout/render
    request
    "home.html"
