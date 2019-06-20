@@ -2,35 +2,26 @@
   (:require
     [guestbook.layout :as layout]
     [guestbook.db.core :as db]
-    [clojure.java.io :as io]
+    ; [clojure.java.io :as io]
     [guestbook.middleware :as middleware]
     [ring.util.http-response :as response]
-    [struct.core :as st]
-    [clojure.pprint :refer [pprint]]))
-
-(def message-schema
-  [[:name
-    st/required
-    st/string]
-   [:message
-    st/required
-    st/string
-    {:message "message must contain at least 10 characters"
-     :validate #(> (count %) 9)}]])
-
-(defn validate-message
-      [params]
-  (first (st/validate params message-schema)))
+    ; [struct.core :as st]
+    [guestbook.validation :refer [validate-message]]))
+    ; [clojure.pprint :refer [pprint]]))
 
 (defn save-message!
   [{:keys [params]}]
   (if-let [errors (validate-message params)]
-    (-> (response/found "/")
-        (assoc :flash (assoc params :errors errors)))
-    (do
+    (response/bad-request {:errors errors})
+
+
+    (try
       (db/save-message!
        (assoc params :timestamp (java.util.Date.)))
-      (response/found "/"))))
+      (response/ok "Body")
+      (catch Exception e
+        (response/internal-server-error
+         {:errors {:server-error ["Failed to save message!"]}})))))
 
 (defn home-page
   "Home page handler.
@@ -49,6 +40,6 @@
   [""
    {:middleware [middleware/wrap-csrf
                  middleware/wrap-formats]}
-   ["/" {:get home-page
-         :post save-message!}]
+   ["/" {:get home-page}]
+   ["/message" {:post save-message!}]
    ["/about" {:get about-page}]])
