@@ -13,8 +13,6 @@
   [{:keys [params]}]
   (if-let [errors (validate-message params)]
     (response/bad-request {:errors errors})
-
-
     (try
       (db/save-message!
        (assoc params :timestamp (java.util.Date.)))
@@ -25,13 +23,19 @@
 
 (defn home-page
   "Home page handler.
-  Takes the request and renders the template with the flash information"
-  [{:keys [flash] :as request}]
+  Takes the request and renders the template"
+  ; [{:keys [flash] :as request}]
+  [request]
   (layout/render
    request
-   "home.html"
-   (merge {:messages (db/get-messages)}
-          (select-keys flash [:name :message :errors]))))
+   "home.html"))
+   ; (merge {:messages (db/get-messages)}
+   ;        (select-keys flash [:name :message :errors]))))
+
+(defn message-list
+  "API for returning database messages"
+  [_]
+  (response/ok {:messages (vec (db/get-messages))}))
 
 (defn about-page [request]
   (layout/render request "about.html"))
@@ -41,5 +45,6 @@
    {:middleware [middleware/wrap-csrf
                  middleware/wrap-formats]}
    ["/" {:get home-page}]
+   ["/messages" {:get message-list}]
    ["/message" {:post save-message!}]
    ["/about" {:get about-page}]])

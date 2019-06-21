@@ -15,7 +15,7 @@
 
 (defn send-message!
   "Sends form details to api backend."
-  [fields errors]
+  [fields errors messages]
   (if-let [validation-errors (validate-message @fields)]
     (reset! errors validation-errors)
     (POST "/message"
@@ -25,11 +25,23 @@
             "x-csrf-token" (.-value (.getElementById js/document "token"))}
            :params @fields
            :handler #(do
-                       (.log js/console (str "response:" %))
-                       (reset! errors nil))
+                       ; (.log js/console (str @fields))
+                       ; (.log js.console (str @messages))
+                       ; (.log js/console (str (conj @messages (assoc @fields :timestamp (js/Date.)))))
+                       (swap! messages conj (assoc @fields :timestamp (js/Date.)))
+                       (reset! errors nil)
+                       (reset! fields nil))
            :error-handler #(do
                              (.log js.console (str %))
                              (reset! errors (get-in % [:response :errors])))})))
+
+
+(defn get-messages
+  "Gets messages from api and fills in the `messages` atom."
+  [messages]
+  (GET "/messages"
+       {:headers {"Accept" "application/transit+json"}
+        :handler #(reset! messages (:messages %))}))
 
 
 (defn errors-component
@@ -40,9 +52,16 @@
   (when-let [error (id @errors)]
     [:div.notification.is-danger (string/join error)]))
 
+; (defn message-list-component
+;   [message]
+;   [:li
+;    [:time (:timestamp message)]
+;    [:p (:message message)]
+;    [:p (str " - " (:name message))]])
+
 (defn message-form
   "Component that is a message form"
-  []
+  [messages]
   (let [fields (r/atom {})
         errors (r/atom {})]
     (fn []
@@ -66,16 +85,35 @@
           :value (:message @fields)}]]
        [:input.button.is-primary
         {:type :submit
-         :on-click #(send-message! fields errors)
+         :on-click #(send-message! fields errors messages)
          :value "comment"}]
        [:p "Name: " (:name @fields)]
        [:p "Message: " (:message @fields)]])))
+
+(defn message-list
+  [messages]
+  [:ul.messages
+   (for [{:keys [timestamp message name]} @messages]
+     ^{:key timestamp}
+     [:li
+      [:time (.toLocaleString timestamp)]
+      [:p message]
+      [:p " - " name]])])
+
 (defn home []
-  [:div.content>div.columns.is-centered>div.column.is-two-thirds
-   [:div.columns>div.column
-    [message-form]]])
+  (let [messages (r/atom nil)]
+    (get-messages messages)
+    (fn []
+      [:div.content
+       [:div.columns.is-centered>div.column.is-two-thirds
+        [:div.columns>div.column
+         [message-form messages]]
+        [:div.columns>div.column
+         [:h3 "Messages"]
+         [message-list messages]]]])))
+
 
 
 (r/render
- (home)
+ [home]
  (.getElementById js/document "content"))
