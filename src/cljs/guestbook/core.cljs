@@ -1,9 +1,11 @@
 (ns guestbook.core
   (:require
    [reagent.core :as r]
+   [re-frame.core :as rf]
    [ajax.core :refer [GET POST]]
    [clojure.string :as string]
    [guestbook.validation :refer [validate-message]]))
+
 
 ; (-> (.getElementById js/document "content")
 ;     (.-innerHTML)
@@ -12,10 +14,44 @@
 ;  [:div#hello.content>h1 "Hello, Auto!"]
 ;  (.getElementById js/document "content"))
 
+;;;; re-frame functions
+
+
+(rf/reg-event-fx
+ :app/initialize
+ (fn [_ _]
+   {:db {:messages/loading? true}}))
+
+(rf/reg-sub
+ :messages/loading?
+ (fn [db _]
+   (:messages/loading? db)))
+
+(rf/reg-event-db
+ :messages/set
+ (fn [db [_ messages]]
+   (-> db
+       (assoc :messages/loading? false
+              :messages/list messages))))
+
+(rf/reg-sub
+ :messages/list
+ (fn [db _]
+   (:messages/list db [])))
+
+(rf/reg-event-db
+ :message/add
+ (fn [db [_ message]]
+   (update db :messages/list conj message)))
+
+
+
+;;;; Reagent Functions
+
 
 (defn send-message!
   "Sends form details to api backend."
-  [fields errors messages]
+  [fields errors]
   (if-let [validation-errors (validate-message @fields)]
     (reset! errors validation-errors)
     (POST "/message"
@@ -28,21 +64,22 @@
                        ; (.log js/console (str @fields))
                        ; (.log js.console (str @messages))
                        ; (.log js/console (str (conj @messages (assoc @fields :timestamp (js/Date.)))))
-                       (swap! messages conj (assoc @fields :timestamp (js/Date.)))
+                       ; (swap! messages conj (assoc @fields :timestamp (js/Date.)))
+                       (rf/dispatch [:message/add (assoc @fields :timestamp (js/Date.))])
                        (reset! errors nil)
                        (reset! fields nil))
            :error-handler #(do
                              (.log js.console (str %))
                              (reset! errors (get-in % [:response :errors])))})))
 
-
 (defn get-messages
-  "Gets messages from api and fills in the `messages` atom."
-  [messages]
+  "Gets messages from api and dispatches messages"
+  []
   (GET "/messages"
        {:headers {"Accept" "application/transit+json"}
-        :handler #(reset! messages (:messages %))}))
-
+        :handler #(do
+                    ; (.log js/console (str (:messages %)))
+                    (rf/dispatch [:messages/set (:messages %)]))}))
 
 (defn errors-component
   "React component based on an errors atom.
@@ -61,7 +98,7 @@
 
 (defn message-form
   "Component that is a message form"
-  [messages]
+  []
   (let [fields (r/atom {})
         errors (r/atom {})]
     (fn []
@@ -85,7 +122,7 @@
           :value (:message @fields)}]]
        [:input.button.is-primary
         {:type :submit
-         :on-click #(send-message! fields errors messages)
+         :on-click #(send-message! fields errors)
          :value "comment"}]
        [:p "Name: " (:name @fields)]
        [:p "Message: " (:message @fields)]])))
@@ -93,7 +130,8 @@
 (defn message-list
   [messages]
   [:ul.messages
-   (for [{:keys [timestamp message name]} @messages]
+   ; (for [{:keys [timestamp message name]} (sort-by :timestamp #(compare %2 %1) @messages)])
+   (for [{:keys [timestamp message name]} (reverse @messages)]
      ^{:key timestamp}
      [:li
       [:time (.toLocaleString timestamp)]
@@ -101,19 +139,20 @@
       [:p " - " name]])])
 
 (defn home []
-  (let [messages (r/atom nil)]
-    (get-messages messages)
+  (let [messages (rf/subscribe [:messages/list])]
+    (rf/dispatch [:app/initialize])
+    (get-messages)
     (fn []
-      [:div.content
-       [:div.columns.is-centered>div.column.is-two-thirds
-        [:div.columns>div.column
-         [message-form messages]]
-        [:div.columns>div.column
-         [:h3 "Messages"]
-         [message-list messages]]]])))
-
-
+      (if @(rf/subscribe [:messages/loading?])
+        [:div>div.row>div.span12>h3 "Loading Messages..."]
+        [:div.content
+         [:div.columns.is-centered>div.column.is-two-thirds
+          [:div.columns>div.column
+           [message-form]]
+          [:div.columns>div.column
+           [:h3 "Messages"]
+           [message-list messages]]]]))))
 
 (r/render
- [home]
- (.getElementById js/document "content"))
+  [home]
+  (.getElementById js/document "content"))

@@ -32,7 +32,8 @@
                  [selmer "1.12.12"]
                  [cljs-ajax "0.7.3"]
                  [org.clojure/clojurescript "1.10.238" :scope "provided"]
-                 [reagent "0.8.1"]]
+                 [reagent "0.8.1"]
+                 [re-frame "0.10.6"]]
 
   :min-lein-version "2.0.0"
 
