@@ -45,16 +45,16 @@
 
   :plugins [[lein-immutant "2.1.0"]
             [lein-cljsbuild "1.1.7"]]
-  :cljsbuild
-  {:builds
-   {:app {:source-paths ["src/cljs" "src/cljc"]
-          :compiler {:output-to "target/cljsbuild/public/js/app.js"
-                     :output-dir "target/cljsbuild/public/js/out"
-                     :main "guestbook.core"
-                     :asset-path "/js/out"
-                     :optimizations :none
-                     :source-map true
-                     :pretty-print true}}}}
+  ; :cljsbuild
+  ; {:builds
+  ;  {:app {:source-paths ["src/cljs" "src/cljc"]
+  ;         :compiler {:output-to "target/cljsbuild/public/js/app.js"
+  ;                    :output-dir "target/cljsbuild/public/js/out"
+  ;                    :main "guestbook.core"
+  ;                    :asset-path "/js/out"
+  ;                    :optimizations :none
+  ;                    :source-map true
+  ;                    :pretty-print true}}}}
   :clean-targets
   ^{:protect false}
   [:target-path
@@ -64,22 +64,61 @@
 
   :profiles
   {:uberjar {:omit-source true
+             :prep-tasks ["compile" ["cljsbuild" "once" "min"]]
              :aot :all
              :uberjar-name "guestbook.jar"
              :source-paths ["env/prod/clj"]
-             :resource-paths ["env/prod/resources"]}
+             :resource-paths ["env/prod/resources"]
+             :cljsbuild
+             {:builds
+              {:min {:source-paths
+                     ["src/cljs" "src/cljc" "env/prod/cljs"]
+
+                     :compiler
+                     {:output-to "target/cljsbuild/public/js/app.js"
+                      :output-dir "target/cljsbuild/public/js"
+                      :source-map "target/cljsbuild/public/js/app.js.map"
+                      :optimizations :advanced
+                      :pretty-print false
+
+                      :closure-warnings
+                      {:externs-validation :off
+                       :non-standard-jsdoc :off}}}}}}
+                                ; :closure-defines
+                                ; {"re_frame.trace.trace_enabled_QMARK_" true}}}}}}
 
    :dev           [:project/dev :profiles/dev]
    :test          [:project/dev :project/test :profiles/test]
 
    :project/dev  {:jvm-opts ["-Dconf=dev-config.edn"]
-                  :dependencies [[expound "0.7.2"]
+                  :dependencies [[binaryage/devtools "0.9.10"]
+                                 [expound "0.7.2"]
                                  [pjstadig/humane-test-output "0.9.0"]
+                                 [figwheel-sidecar "0.5.18"]
                                  [prone "1.6.3"]
                                  [ring/ring-devel "1.7.1"]
-                                 [ring/ring-mock "0.4.0"]]
-                  :plugins      [[com.jakemccrary/lein-test-refresh "0.24.1"]]
-
+                                 [ring/ring-mock "0.4.0"]
+                                 [day8.re-frame/re-frame-10x "0.3.3-react16"]]
+                  :plugins      [[com.jakemccrary/lein-test-refresh "0.24.1"]
+                                 [lein-figwheel "0.5.18"]]
+                  :cljsbuild
+                  {:builds
+                   {:app {:source-paths ["src/cljs" "src/cljc" "env/dev/cljs"]
+                          :figwheel {:on-jsload "guestbook.core/mount-components"}
+                          :compiler {:output-to "target/cljsbuild/public/js/app.js"
+                                     :output-dir "target/cljsbuild/public/js/out"
+                                     :main "guestbook.core"
+                                     :asset-path "/js/out"
+                                     :optimizations :none
+                                     :source-map true
+                                     :pretty-print true
+                                     :closure-defines
+                                     {"re_frame.trace.trace_enabled_QMARK_" true}
+                                     :preloads [day8.re-frame-10x.preload]}}}}
+                  :figwheel
+                  {:http-server-root "public"
+                   :nrepl-port 7002
+                   :css-dirs ["resources/public/css"]}
                   :source-paths ["env/dev/clj"]
                   :resource-paths ["env/dev/resources"]
                   :repl-options {:init-ns user}

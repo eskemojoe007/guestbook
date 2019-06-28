@@ -54,7 +54,7 @@
   [fields errors]
   (if-let [validation-errors (validate-message @fields)]
     (reset! errors validation-errors)
-    (POST "/message"
+    (POST "/api/message"
           {:format :json
            :headers
            {"Accept" "application/transit+json"
@@ -65,7 +65,9 @@
                        ; (.log js.console (str @messages))
                        ; (.log js/console (str (conj @messages (assoc @fields :timestamp (js/Date.)))))
                        ; (swap! messages conj (assoc @fields :timestamp (js/Date.)))
-                       (rf/dispatch [:message/add (assoc @fields :timestamp (js/Date.))])
+                       (rf/dispatch [:message/add (-> @fields
+                                                      (assoc :timestamp (js/Date.))
+                                                      (update :name str " [CLIENT]"))])
                        (reset! errors nil)
                        (reset! fields nil))
            :error-handler #(do
@@ -75,7 +77,7 @@
 (defn get-messages
   "Gets messages from api and dispatches messages"
   []
-  (GET "/messages"
+  (GET "/api/messages"
        {:headers {"Accept" "application/transit+json"}
         :handler #(do
                     ; (.log js/console (str (:messages %)))
@@ -136,12 +138,12 @@
      [:li
       [:time (.toLocaleString timestamp)]
       [:p message]
-      [:p " - " name]])])
+      [:p "@" name]])])
 
 (defn home []
   (let [messages (rf/subscribe [:messages/list])]
-    (rf/dispatch [:app/initialize])
-    (get-messages)
+    ; (rf/dispatch [:app/initialize])
+    ; (get-messages)
     (fn []
       (if @(rf/subscribe [:messages/loading?])
         [:div>div.row>div.span12>h3 "Loading Messages..."]
@@ -153,6 +155,21 @@
            [:h3 "Messages"]
            [message-list messages]]]]))))
 
-(r/render
-  [home]
-  (.getElementById js/document "content"))
+(defn mount-components
+  []
+  (.log js.console "Mounting Components...")
+  (r/render [#'home] (.getElementById js/document "content"))
+  (.log js.console "Components Mounted!"))
+
+(defn init!
+  []
+  (.log js.console "Initializing App..")
+  (rf/dispatch [:app/initialize])
+  (get-messages)
+  (mount-components))
+; (.log js/console "guestbook.core evaluated!")
+; (.log js/console "guestbook.core evaluated 2!")
+;
+; (r/render
+;   [home]
+;   (.getElementById js/document "content"))
